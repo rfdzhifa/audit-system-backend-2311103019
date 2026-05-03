@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// ENUMS
+// =======================
+
+enum Role {
+  ADMIN
+  AUDITOR
+  USER
+}
+
+enum Action {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum Entity {
+  USER
+  EMPLOYEE
+}
+
+enum Status {
+  SUCCESS
+  FAILED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// =======================
+// MODELS
+// =======================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  employee   Employee?
+  auditLogs  AuditLog[]
+  suspicious SuspiciousActivity[]
+
+  @@map("users")
+}
+
+model Employee {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  position   String
+  department String
+  salary     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("employees")
+}
+
+model AuditLog {
+  id            Int       @id @default(autoincrement())
+  userId        Int?
+  action        Action
+  entity        Entity?
+  entityId      Int?
+  endpoint      String
+  method        String
+  ipAddress     String?
+  userAgent     String?
+  oldData       Json?
+  newData       Json?
+  status        Status
+  riskLevel     RiskLevel
+  isSuspicious  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  // relations
+  user User? @relation(fields: [userId], references: [id])
+  suspicious SuspiciousActivity?
+
+  @@map("audit_logs")
+}
+
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  email     String
+  ipAddress String?
+  status    Status
+  createdAt DateTime @default(now())
+
+  @@map("login_attempts")
+}
+
+model SuspiciousActivity {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  auditLogId  Int      @unique
+  reason      String
+  createdAt   DateTime @default(now())
+
+  // relations
+  user     User     @relation(fields: [userId], references: [id])
+  auditLog AuditLog @relation(fields: [auditLogId], references: [id])
+
+  @@map("suspicious_activities")
+}
