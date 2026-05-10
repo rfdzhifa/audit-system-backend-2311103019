@@ -11,12 +11,14 @@ const {
     updateUserByAdmin,
     deleteMyAccount,
     deleteUserByAdmin,
+    logoutUser,
 } = require("../controllers/userControllers")
 const authMiddleware = require("../middleware/authMiddleware");
 
 //PUBLIC
 router.post("/login", loginUser)
 router.post("/register", createUser);
+router.post("/logout", authMiddleware, logoutUser);
 
 //NEED AUTH
 router.get("/me", authMiddleware, getProfile);
