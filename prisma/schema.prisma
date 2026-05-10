@@ -11,7 +11,6 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-
 // =======================
 // ENUMS
 // =======================
@@ -32,7 +31,7 @@ enum Action {
 
 enum Entity {
   USER
-  EMPLOYEE
+  COMPLAINT
 }
 
 enum Status {
@@ -46,6 +45,13 @@ enum RiskLevel {
   HIGH
 }
 
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
 // =======================
 // MODELS
 // =======================
@@ -56,75 +62,115 @@ model User {
   email     String   @unique
   password  String
   role      Role     @default(USER)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // relations
-  employee   Employee?
-  auditLogs  AuditLog[]
-  suspicious SuspiciousActivity[]
+  complaints  Complaint[]
+  auditLogs   AuditLog[]
+  suspicious  SuspiciousActivity[]
 
   @@map("users")
 }
 
-model Employee {
-  id         Int      @id @default(autoincrement())
-  userId     Int      @unique
-  position   String
-  department String
-  salary     Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// =======================
+// COMPLAINT
+// =======================
+
+model Complaint {
+  id          Int               @id @default(autoincrement())
+  userId      Int
+
+  ticketCode  String            @unique
+  title       String
+  category    String
+  description String
+
+  response    String?
+
+  status      ComplaintStatus   @default(PENDING)
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   // relations
   user User @relation(fields: [userId], references: [id])
 
-  @@map("employees")
+  @@map("complaints")
 }
 
+// =======================
+// AUDIT LOG
+// =======================
+
 model AuditLog {
-  id            Int       @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
+
   userId        Int?
   action        Action
+
   entity        Entity?
   entityId      Int?
+
   endpoint      String
   method        String
+
   ipAddress     String?
   userAgent     String?
+
   oldData       Json?
   newData       Json?
+
   status        Status
   riskLevel     RiskLevel
-  isSuspicious  Boolean   @default(false)
-  createdAt     DateTime  @default(now())
+
+  isSuspicious  Boolean    @default(false)
+
+  createdAt     DateTime   @default(now())
 
   // relations
   user User? @relation(fields: [userId], references: [id])
+
   suspicious SuspiciousActivity?
 
   @@map("audit_logs")
 }
 
+// =======================
+// LOGIN ATTEMPT
+// =======================
+
 model LoginAttempt {
-  id        Int      @id @default(autoincrement())
-  email     String
-  ipAddress String?
-  status    Status
-  createdAt DateTime @default(now())
+  id          Int       @id @default(autoincrement())
+
+  email       String
+  ipAddress   String?
+
+  status      Status
+
+  createdAt   DateTime  @default(now())
 
   @@map("login_attempts")
 }
 
+// =======================
+// SUSPICIOUS ACTIVITY
+// =======================
+
 model SuspiciousActivity {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
+
   userId      Int
-  auditLogId  Int      @unique
+  auditLogId  Int       @unique
+
   reason      String
-  createdAt   DateTime @default(now())
+
+  createdAt   DateTime  @default(now())
 
   // relations
-  user     User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
   auditLog AuditLog @relation(fields: [auditLogId], references: [id])
 
   @@map("suspicious_activities")
