@@ -9,9 +9,11 @@ app.use(express.json())
 
 // IMPORT ROUTES
 const userRoutes = require("./routes/userRoutes")
+const complaintRoutes = require("./routes/complaintRoutes")
 
 // REGISTER ROUTES
 app.use("/api", userRoutes)
+app.use("/api/complaints", complaintRoutes)
 
 // test route
 app.get("/", (req, res) => {
