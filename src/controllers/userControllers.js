@@ -3,35 +3,66 @@ const prisma = require("../config/prisma")
 const { Prisma } = require("@prisma/client")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
+const createAuditLog = require("../utils/createAuditLog")
 
 
 //CREATE USER
 const createUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body; 
-    
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { name, email, password } = req.body
+
+    const hashedPassword = await bcrypt.hash(password, 10)
 
     const user = await prisma.user.create({
       data: {
-        name: name,
-        email: email,
+        name,
+        email,
         password: hashedPassword,
       },
-    });
+    })
 
-    res.status(201).json(user);
+    // audit log
+    await createAuditLog({
+      userId: req.user?.id || null,
+
+      action: "CREATE",
+
+      entity: "USER",
+      entityId: user.id,
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      newData: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+
+      status: "SUCCESS",
+
+      riskLevel: "MEDIUM",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
+
+    res.status(201).json(user)
+
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'Email sudah terdaftar.' });
+      return res.status(400).json({
+        message: 'Email sudah terdaftar.'
+      })
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       message: 'Terjadi kesalahan pada server.',
-      error: error.message 
-    });
+      error: error.message
+    })
   }
-};
+}
 
 //GET ALL
 const getAllUsers = async (req, res) => {
@@ -60,163 +91,391 @@ const getAllUsers = async (req, res) => {
 //UPDATE BY ADMIN
 const updateUserByAdmin = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, email, password, role } = req.body;
+    const { id } = req.params
+    const { name, email, password, role } = req.body
 
-    const data = {};
+    // ambil data lama
+    const oldUser = await prisma.user.findUnique({
+      where: {
+        id: parseInt(id)
+      }
+    })
 
-    if (name) data.name = name;
-    if (email) data.email = email;
-    if (role) data.role = role;
+    const data = {}
+
+    if (name) data.name = name
+    if (email) data.email = email
+    if (role) data.role = role
 
     if (password) {
-      data.password = await bcrypt.hash(password, 10);
+      data.password = await bcrypt.hash(password, 10)
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: {
+        id: parseInt(id)
+      },
       data,
-    });
+    })
 
-    const { password: _, ...safeUser } = updatedUser;
+    // audit log
+    await createAuditLog({
+      userId: req.user.id,
+
+      action: "UPDATE",
+
+      entity: "USER",
+      entityId: updatedUser.id,
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      oldData: {
+        id: oldUser.id,
+        name: oldUser.name,
+        email: oldUser.email,
+        role: oldUser.role
+      },
+
+      newData: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role
+      },
+
+      status: "SUCCESS",
+
+      riskLevel: "HIGH",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
+
+    const { password: _, ...safeUser } = updatedUser
 
     res.json({
       message: "User berhasil diupdate oleh admin",
       user: safeUser,
-    });
+    })
+
   } catch (error) {
     res.status(500).json({
       message: "Error update user",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 //UPDATE
 const updateMyProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { name, email, password, role } = req.body;
+    const userId = req.user.id
+    const { name, email, password, role } = req.body
 
     if (role) {
       return res.status(400).json({
         message: "Role tidak bisa diubah oleh user"
-      });
+      })
     }
 
-    const data = {};
+    // ambil data lama
+    const oldUser = await prisma.user.findUnique({
+      where: {
+        id: userId
+      }
+    })
 
-    if (name) data.name = name;
-    if (email) data.email = email;
+    const data = {}
+
+    if (name) data.name = name
+    if (email) data.email = email
 
     if (password) {
-      data.password = await bcrypt.hash(password, 10);
+      data.password = await bcrypt.hash(password, 10)
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
+      where: {
+        id: userId
+      },
       data,
-    });
+    })
 
-    const { password: _, ...safeUser } = updatedUser;
+    // audit log
+    await createAuditLog({
+      userId: req.user.id,
+
+      action: "UPDATE",
+
+      entity: "USER",
+      entityId: updatedUser.id,
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      oldData: {
+        id: oldUser.id,
+        name: oldUser.name,
+        email: oldUser.email,
+        role: oldUser.role
+      },
+
+      newData: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role
+      },
+
+      status: "SUCCESS",
+
+      riskLevel: "MEDIUM",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
+
+    const { password: _, ...safeUser } = updatedUser
 
     res.json({
       message: "Profile berhasil diupdate",
       user: safeUser,
-    });
+    })
 
   } catch (error) {
     res.status(500).json({
       message: "Gagal update profile",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 //DELETE BY ADMIN
 const deleteUserByAdmin = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
-    const targetUserId = parseInt(id);
+    const targetUserId = parseInt(id)
 
-    if (req.user.userId === targetUserId) {
+    // admin tidak boleh hapus dirinya sendiri
+    if (req.user.id === targetUserId) {
       return res.status(400).json({
         message: "Admin tidak bisa menghapus akun sendiri"
-      });
+      })
     }
 
+    // ambil data user sebelum dihapus
+    const user = await prisma.user.findUnique({
+      where: {
+        id: targetUserId
+      }
+    })
+
+    // delete user
     await prisma.user.delete({
-      where: { id: targetUserId },
-    });
+      where: {
+        id: targetUserId
+      },
+    })
+
+    // audit log
+    await createAuditLog({
+      userId: req.user.id,
+
+      action: "DELETE",
+
+      entity: "USER",
+      entityId: targetUserId,
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      oldData: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+
+      status: "SUCCESS",
+
+      riskLevel: "HIGH",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
 
     res.json({
       message: "User berhasil dihapus oleh admin",
-    });
+    })
 
   } catch (error) {
+
     if (error.code === "P2025") {
-      return res.status(404).json({ message: "User tidak ditemukan" });
+      return res.status(404).json({
+        message: "User tidak ditemukan"
+      })
     }
 
     res.status(500).json({
       message: "Gagal menghapus user",
       error: error.message,
-    });
+    })
   }
-};
+}
 
 
 //DELETE MY ACCOUNT
 const deleteMyAccount = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id
 
-    await prisma.user.delete({
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        deletedAt: null
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User tidak ditemukan atau sudah dihapus"
+      })
+    }
+
+    await prisma.user.update({
       where: { id: userId },
-    });
+      data: {
+        deletedAt: new Date()
+      }
+    })
 
-    res.json({
-      message: "Akun berhasil dihapus",
-    });
+    await createAuditLog({
+      userId,
+
+      action: "SOFT_DELETE",
+      entity: "USER",
+      entityId: userId,
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      oldData: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+
+      status: "SUCCESS",
+      riskLevel: "MEDIUM",
+
+      ipAddress: req.ip || null,
+      userAgent: req.headers["user-agent"]
+    })
+
+    return res.json({
+      message: "Akun berhasil dinonaktifkan"
+    })
+
   } catch (error) {
-    res.status(500).json({
-      message: "Gagal menghapus akun",
-      error: error.message,
-    });
+    console.error("DELETE ACCOUNT ERROR:", error)
+
+    return res.status(500).json({
+      message: "Gagal menonaktifkan akun",
+      error: error.message
+    })
   }
-};
+}
 
 //LOGIN
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email dan password wajib diisi" });
+      return res.status(400).json({
+        message: "Email dan password wajib diisi"
+      })
     }
 
     const user = await prisma.user.findUnique({
       where: { email },
-    });
+    })
 
+    // user tidak ditemukan
     if (!user) {
-      return res.status(404).json({ message: "User tidak ditemukan" });
+
+      await prisma.loginAttempt.create({
+        data: {
+          email,
+          ipAddress: req.ip,
+          status: "FAILED"
+        }
+      })
+
+      return res.status(404).json({
+        message: "User tidak ditemukan"
+      })
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password)
+
+    // password salah
     if (!isMatch) {
-      return res.status(401).json({ message: "Password salah" });
+
+      await prisma.loginAttempt.create({
+        data: {
+          email,
+          ipAddress: req.ip,
+          status: "FAILED"
+        }
+      })
+
+      return res.status(401).json({
+        message: "Password salah"
+      })
     }
 
+    // login success
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: user.role 
+      {
+        id: user.id,
+        role: user.role
       },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
-    );
+    )
+
+    // simpan login attempt success
+    await prisma.loginAttempt.create({
+      data: {
+        email,
+        ipAddress: req.ip,
+        status: "SUCCESS"
+      }
+    })
+
+    // audit log login
+    await createAuditLog({
+      userId: user.id,
+
+      action: "LOGIN",
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      entity: "USER",
+      entityId: user.id,
+
+      status: "SUCCESS",
+
+      riskLevel: "LOW",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
 
     res.json({
       message: "Login berhasil",
@@ -227,22 +486,23 @@ const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
       },
-    });
+    })
+
   } catch (error) {
-    console.error("Login Error:", error);
+
+    console.error("Login Error:", error)
 
     res.status(500).json({
       message: "Terjadi kesalahan pada server saat login",
       error: error.message,
-    });
+    })
   }
-};
-
+}
 
 //PROFILE
 const getProfile = async (req, res) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -265,6 +525,43 @@ const getProfile = async (req, res) => {
   }
 };
 
+//LOGUT
+const logoutUser = async (req, res) => {
+  try {
+
+    // audit log logout
+    await createAuditLog({
+      userId: req.user.id,
+
+      action: "LOGOUT",
+
+      endpoint: req.originalUrl,
+      method: req.method,
+
+      entity: "USER",
+      entityId: req.user.id,
+
+      status: "SUCCESS",
+
+      riskLevel: "LOW",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    })
+
+    res.status(200).json({
+      success: true,
+      message: "Logout berhasil"
+    })
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
 module.exports = { 
     createUser,
     updateMyProfile,
@@ -273,5 +570,6 @@ module.exports = {
     deleteUserByAdmin,
     loginUser,
     getProfile,
-    getAllUsers
+    getAllUsers,
+    logoutUser
 }

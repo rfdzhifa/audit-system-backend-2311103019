@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `audit_logs` MODIFY `action` ENUM('LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'SOFT_DELETE') NOT NULL;

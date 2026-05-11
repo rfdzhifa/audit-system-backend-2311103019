@@ -10,10 +10,12 @@ app.use(express.json())
 // IMPORT ROUTES
 const userRoutes = require("./routes/userRoutes")
 const complaintRoutes = require("./routes/complaintRoutes")
+const auditLogs = require("./routes/auditRoutes")
 
 // REGISTER ROUTES
 app.use("/api", userRoutes)
 app.use("/api/complaints", complaintRoutes)
+app.use("/api/auditLogs", auditLogs)
 
 // test route
 app.get("/", (req, res) => {
