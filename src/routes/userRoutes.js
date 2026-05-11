@@ -13,11 +13,15 @@ const {
     deleteUserByAdmin,
     logoutUser,
 } = require("../controllers/userControllers")
+const {
+  registerValidation,
+  loginValidation
+} = require("../validations/authValidation")
 const authMiddleware = require("../middleware/authMiddleware");
 
 //PUBLIC
-router.post("/login", loginUser)
-router.post("/register", createUser);
+router.post("/login", loginValidation, loginUser)
+router.post("/register", registerValidation, createUser);
 router.post("/logout", authMiddleware, logoutUser);
 
 //NEED AUTH
