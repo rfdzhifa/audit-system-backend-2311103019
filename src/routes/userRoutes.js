@@ -25,9 +25,9 @@ router.post("/register", registerValidation, createUser);
 router.post("/logout", authMiddleware, logoutUser);
 
 //NEED AUTH
-router.get("/me", authMiddleware, getProfile);
-router.put("/me", authMiddleware, updateMyProfile);
-router.delete("/me", authMiddleware, deleteMyAccount);
+router.get("/users/me", authMiddleware, getProfile);
+router.put("/users/me", authMiddleware, updateMyProfile);
+router.delete("/users/me", authMiddleware, deleteMyAccount);
 
 //ADMIN
 router.get("/admin/users", authMiddleware, authorize("ADMIN"), getAllUsers);

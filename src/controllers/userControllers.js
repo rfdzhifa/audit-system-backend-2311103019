@@ -331,26 +331,30 @@ const deleteMyAccount = async (req, res) => {
   try {
     const userId = req.user.id
 
-    // ambil data user sebelum dihapus
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: {
-        id: userId
+        id: userId,
+        deletedAt: null
       }
     })
 
-    // delete account
-    await prisma.user.delete({
-      where: {
-        id: userId
-      },
+    if (!user) {
+      return res.status(404).json({
+        message: "User tidak ditemukan atau sudah dihapus"
+      })
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date()
+      }
     })
 
-    // audit log
     await createAuditLog({
-      userId: userId,
+      userId,
 
-      action: "DELETE",
-
+      action: "SOFT_DELETE",
       entity: "USER",
       entityId: userId,
 
@@ -365,21 +369,22 @@ const deleteMyAccount = async (req, res) => {
       },
 
       status: "SUCCESS",
-
       riskLevel: "MEDIUM",
 
-      ipAddress: req.ip,
+      ipAddress: req.ip || null,
       userAgent: req.headers["user-agent"]
     })
 
-    res.json({
-      message: "Akun berhasil dihapus",
+    return res.json({
+      message: "Akun berhasil dinonaktifkan"
     })
 
   } catch (error) {
-    res.status(500).json({
-      message: "Gagal menghapus akun",
-      error: error.message,
+    console.error("DELETE ACCOUNT ERROR:", error)
+
+    return res.status(500).json({
+      message: "Gagal menonaktifkan akun",
+      error: error.message
     })
   }
 }
