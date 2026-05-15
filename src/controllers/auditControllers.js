@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma")
 const { Prisma } = require("@prisma/client")
+const { Parser } = require("json2csv")
 
 const getAuditLogs = async (req, res) => {
   try {
