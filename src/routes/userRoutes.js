@@ -12,6 +12,7 @@ const {
     deleteMyAccount,
     deleteUserByAdmin,
     logoutUser,
+    getUserActivity,
 } = require("../controllers/userControllers")
 const {
   registerValidation,
@@ -33,5 +34,7 @@ router.delete("/users/me", authMiddleware, deleteMyAccount);
 router.get("/admin/users", authMiddleware, authorize("ADMIN"), getAllUsers);
 router.put("/admin/users/:id", authMiddleware, authorize("ADMIN"), updateUserByAdmin);
 router.delete("/admin/users/:id", authMiddleware, authorize("ADMIN"), deleteUserByAdmin);
+
+router.get("/users/:id/activity", authMiddleware, authorize("ADMIN", "AUDITOR"), getUserActivity);
 
 module.exports = router
