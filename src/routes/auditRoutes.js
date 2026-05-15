@@ -4,7 +4,8 @@ const authorize = require("../middleware/authorize")
 const authMiddleware = require("../middleware/authMiddleware");
 
 const {
-  getAuditLogs
+  getAuditLogs,
+  exportAuditLogs
 } = require("../controllers/auditControllers")
 
 router.get(
@@ -12,6 +13,13 @@ router.get(
   authMiddleware,
   authorize("ADMIN", "AUDITOR"),
   getAuditLogs
+)
+
+router.get(
+  "/export",
+  authMiddleware,
+  authorize("ADMIN", "AUDITOR"),
+  exportAuditLogs
 )
 
 module.exports = router

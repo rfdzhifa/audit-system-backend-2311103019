@@ -530,8 +530,6 @@ const loginUser = async (req, res) => {
       })
     }
 
-    console.log("FAILED ATTEMPTS:", failedAttempts)
-
     // =========================
     // LOGIN SUCCESS
     // =========================
