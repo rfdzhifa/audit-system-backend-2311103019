@@ -1,51 +1,31 @@
 const prisma = require("../config/prisma")
-const { Prisma } = require("@prisma/client")
 const UAParser = require("ua-parser-js")
 
-const createAuditLog = async ({
-  userId,
-  action,
-  entity,
-  entityId,
-  endpoint,
-  method,
-  oldData = null,
-  newData = null,
+const createLoginAttempt = async ({
+  email,
   status,
-  riskLevel = "LOW",
-  isSuspicious = false,
+  failureReason = null,
   ipAddress = null,
   userAgent = null
 }) => {
   try {
 
-    // parse user agent
+    // parse user-agent
     const parser = new UAParser(userAgent)
     const result = parser.getResult()
 
-    // device info
     const deviceInfo = {
       os: `${result.os.name || "Unknown"} ${result.os.version || ""}`,
       browser: `${result.browser.name || "Unknown"} ${result.browser.version || ""}`,
       deviceType: result.device.type || "desktop"
     }
 
-    await prisma.auditLog.create({
+    await prisma.loginAttempt.create({
       data: {
-        userId,
-        action,
-        entity,
-        entityId,
-
-        endpoint,
-        method,
-
-        oldData,
-        newData,
+        email,
 
         status,
-        riskLevel,
-        isSuspicious,
+        failureReason,
 
         ipAddress,
         userAgent,
@@ -55,8 +35,8 @@ const createAuditLog = async ({
     })
 
   } catch (error) {
-    console.error("Audit Log Error:", error)
+    console.error("Login Attempt Error:", error)
   }
 }
 
-module.exports = createAuditLog
+module.exports = createLoginAttempt
