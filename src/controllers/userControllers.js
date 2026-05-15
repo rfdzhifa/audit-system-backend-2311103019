@@ -4,6 +4,7 @@ const { Prisma } = require("@prisma/client")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const createAuditLog = require("../utils/createAuditLog")
+const createLoginAttempt = require("../utils/createLoginAttempt")
 
 
 //CREATE USER
@@ -407,12 +408,14 @@ const loginUser = async (req, res) => {
     // user tidak ditemukan
     if (!user) {
 
-      await prisma.loginAttempt.create({
-        data: {
-          email,
-          ipAddress: req.ip,
-          status: "FAILED"
-        }
+      await createLoginAttempt({
+        email,
+
+        status: "FAILED",
+        failureReason: "User tidak ditemukan",
+
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
       })
 
       return res.status(404).json({
@@ -425,12 +428,14 @@ const loginUser = async (req, res) => {
     // password salah
     if (!isMatch) {
 
-      await prisma.loginAttempt.create({
-        data: {
-          email,
-          ipAddress: req.ip,
-          status: "FAILED"
-        }
+      await createLoginAttempt({
+        email,
+
+        status: "FAILED",
+        failureReason: "Password salah",
+
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]
       })
 
       return res.status(401).json({
@@ -449,12 +454,13 @@ const loginUser = async (req, res) => {
     )
 
     // simpan login attempt success
-    await prisma.loginAttempt.create({
-      data: {
-        email,
-        ipAddress: req.ip,
-        status: "SUCCESS"
-      }
+    await createLoginAttempt({
+      email,
+
+      status: "SUCCESS",
+
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
     })
 
     // audit log login

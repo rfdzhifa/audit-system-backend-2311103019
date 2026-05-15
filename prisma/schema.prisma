@@ -146,14 +146,20 @@ model AuditLog {
 // =======================
 
 model LoginAttempt {
-  id          Int       @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
 
-  email       String
-  ipAddress   String?
+  email         String
 
-  status      Status
+  ipAddress     String?
+  userAgent     String?
 
-  createdAt   DateTime  @default(now())
+  deviceInfo    Json?
+
+  status        Status
+
+  failureReason String?
+
+  createdAt     DateTime  @default(now())
 
   @@map("login_attempts")
 }
