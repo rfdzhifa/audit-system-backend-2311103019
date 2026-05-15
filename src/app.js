@@ -11,11 +11,13 @@ app.use(express.json())
 const userRoutes = require("./routes/userRoutes")
 const complaintRoutes = require("./routes/complaintRoutes")
 const auditLogs = require("./routes/auditRoutes")
+const dashboard = require("./routes/dashboardRoutes")
 
 // REGISTER ROUTES
 app.use("/api", userRoutes)
 app.use("/api/complaints", complaintRoutes)
 app.use("/api/auditLogs", auditLogs)
+app.use("/api/dashboard", dashboard)
 
 // test route
 app.get("/", (req, res) => {

@@ -28,11 +28,14 @@ enum Action {
   UPDATE
   DELETE
   SOFT_DELETE
+  READ
 }
 
 enum Entity {
   USER
   COMPLAINT
+  AUDIT_LOG
+  DASHBOARD
 }
 
 enum Status {

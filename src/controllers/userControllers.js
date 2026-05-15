@@ -659,6 +659,86 @@ const logoutUser = async (req, res) => {
   }
 }
 
+const getUserActivity = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id)
+
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid userId"
+      })
+    }
+
+    const limit = Number(req.query.limit || 50)
+    const page = Number(req.query.page || 1)
+    const skip = (page - 1) * limit
+
+    const [auditLogs, loginAttempts, suspiciousActivities] =
+      await Promise.all([
+        prisma.auditLog.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit
+        }),
+
+        prisma.loginAttempt.findMany({
+          where: { email: req.query.email }, // optional kalau masih mau pakai email
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit
+        }),
+
+        prisma.suspiciousActivity.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit
+        })
+      ])
+
+    const timeline = [
+      ...auditLogs.map(a => ({
+        type: "AUDIT_LOG",
+        action: a.action,
+        status: a.status,
+        endpoint: a.endpoint,
+        createdAt: a.createdAt
+      })),
+
+      ...loginAttempts.map(l => ({
+        type: "LOGIN_ATTEMPT",
+        status: l.status,
+        email: l.email,
+        createdAt: l.createdAt
+      })),
+
+      ...suspiciousActivities.map(s => ({
+        type: "SUSPICIOUS_ACTIVITY",
+        reason: s.reason,
+        createdAt: s.createdAt
+      }))
+    ]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, limit)
+
+    res.json({
+      success: true,
+      data: {
+        userId,
+        timeline
+      }
+    })
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
 module.exports = { 
     createUser,
     updateMyProfile,
@@ -668,5 +748,6 @@ module.exports = {
     loginUser,
     getProfile,
     getAllUsers,
-    logoutUser
+    logoutUser,
+    getUserActivity
 }
