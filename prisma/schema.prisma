@@ -176,6 +176,8 @@ model SuspiciousActivity {
 
   reason      String
 
+  severity    RiskLevel @default(MEDIUM)
+
   createdAt   DateTime  @default(now())
 
   // relations

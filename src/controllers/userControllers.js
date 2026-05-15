@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const createAuditLog = require("../utils/createAuditLog")
 const createLoginAttempt = require("../utils/createLoginAttempt")
-
+const detectSuspiciousActivity = require("../utils/detectSuspiciousActivity")
 
 //CREATE USER
 const createUser = async (req, res) => {
@@ -393,6 +393,7 @@ const deleteMyAccount = async (req, res) => {
 //LOGIN
 const loginUser = async (req, res) => {
   try {
+
     const { email, password } = req.body
 
     if (!email || !password) {
@@ -402,10 +403,12 @@ const loginUser = async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email }
     })
 
-    // user tidak ditemukan
+    // =========================
+    // USER TIDAK DITEMUKAN
+    // =========================
     if (!user) {
 
       await createLoginAttempt({
@@ -418,11 +421,54 @@ const loginUser = async (req, res) => {
         userAgent: req.headers["user-agent"]
       })
 
+      // cek suspicious
+      const suspiciousCheck = await detectSuspiciousActivity({
+        email,
+        ipAddress: req.ip
+      })
+
+      // kalau suspicious
+      if (suspiciousCheck.suspicious) {
+
+        const auditLog = await prisma.auditLog.create({
+          data: {
+            action: "LOGIN",
+
+            endpoint: req.originalUrl,
+            method: req.method,
+
+            status: "FAILED",
+
+            riskLevel: suspiciousCheck.severity,
+
+            isSuspicious: true,
+
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"]
+          }
+        })
+
+        await prisma.suspiciousActivity.create({
+          data: {
+            userId: null,
+
+            auditLogId: auditLog.id,
+
+            reason: suspiciousCheck.reason,
+
+            severity: suspiciousCheck.severity
+          }
+        })
+      }
+
       return res.status(404).json({
         message: "User tidak ditemukan"
       })
     }
 
+    // =========================
+    // PASSWORD CHECK
+    // =========================
     const isMatch = await bcrypt.compare(password, user.password)
 
     // password salah
@@ -438,12 +484,57 @@ const loginUser = async (req, res) => {
         userAgent: req.headers["user-agent"]
       })
 
+      // cek suspicious
+      const suspiciousCheck = await detectSuspiciousActivity({
+        email
+      })
+
+      // kalau suspicious
+      if (suspiciousCheck.suspicious) {
+
+        const auditLog = await prisma.auditLog.create({
+          data: {
+            userId: user.id,
+
+            action: "LOGIN",
+
+            endpoint: req.originalUrl,
+            method: req.method,
+
+            status: "FAILED",
+
+            riskLevel: suspiciousCheck.severity,
+
+            isSuspicious: true,
+
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"]
+          }
+        })
+
+        await prisma.suspiciousActivity.create({
+          data: {
+            userId: user.id,
+
+            auditLogId: auditLog.id,
+
+            reason: suspiciousCheck.reason,
+
+            severity: suspiciousCheck.severity
+          }
+        })
+      }
+
       return res.status(401).json({
         message: "Password salah"
       })
     }
 
-    // login success
+    console.log("FAILED ATTEMPTS:", failedAttempts)
+
+    // =========================
+    // LOGIN SUCCESS
+    // =========================
     const token = jwt.sign(
       {
         id: user.id,
@@ -453,7 +544,7 @@ const loginUser = async (req, res) => {
       { expiresIn: "1d" }
     )
 
-    // simpan login attempt success
+    // login attempt success
     await createLoginAttempt({
       email,
 
@@ -469,11 +560,11 @@ const loginUser = async (req, res) => {
 
       action: "LOGIN",
 
-      endpoint: req.originalUrl,
-      method: req.method,
-
       entity: "USER",
       entityId: user.id,
+
+      endpoint: req.originalUrl,
+      method: req.method,
 
       status: "SUCCESS",
 
@@ -483,24 +574,26 @@ const loginUser = async (req, res) => {
       userAgent: req.headers["user-agent"]
     })
 
-    res.json({
+    return res.json({
       message: "Login berhasil",
+
       token,
+
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
-      },
+        role: user.role
+      }
     })
 
   } catch (error) {
 
     console.error("Login Error:", error)
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Terjadi kesalahan pada server saat login",
-      error: error.message,
+      error: error.message
     })
   }
 }
